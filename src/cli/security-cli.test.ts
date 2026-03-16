@@ -242,4 +242,90 @@ describe("security CLI", () => {
       }),
     );
   });
+
+  it("fails strict mode when strict policy findings exist", async () => {
+    const sourceConfig = { gateway: { mode: "local" } };
+    loadConfig.mockReturnValue(sourceConfig);
+    resolveCommandSecretRefsViaGateway.mockResolvedValue({
+      resolvedConfig: sourceConfig,
+      diagnostics: [],
+      targetStatesByPath: {},
+      hadUnresolvedTargets: false,
+    });
+    runSecurityAudit.mockResolvedValue({
+      ts: 0,
+      summary: { critical: 0, warn: 0, info: 0 },
+      findings: [],
+    });
+
+    await expect(
+      createProgram().parseAsync(["security", "audit", "--strict", "--json"], { from: "user" }),
+    ).rejects.toThrow("__exit__:1");
+
+    const payload = JSON.parse(String(runtimeLogs.at(-1)));
+    expect(payload.strict.enabled).toBe(true);
+    expect(payload.strict.passed).toBe(false);
+    expect(Array.isArray(payload.strict.strictFindings)).toBe(true);
+    expect(payload.strict.strictFindings.length).toBeGreaterThan(0);
+  });
+
+  it("passes strict mode when policy and audit findings are clean", async () => {
+    const sourceConfig = {
+      system: {
+        os: {
+          security: { profile: "strict" },
+          boot: { integrity: "required" },
+          runtime: { sandbox: "required" },
+          privacy: { inferenceRouting: "hybrid-classified" },
+          telemetry: { enabled: false },
+          autonomy: { enabled: true, defaultModel: "ollama/qwen3:4b" },
+        },
+      },
+      gateway: {
+        bind: "loopback",
+        auth: { mode: "token", token: "secret" },
+      },
+      tools: {
+        profile: "coding",
+        exec: { host: "sandbox", security: "full", ask: "off" },
+        elevated: { enabled: false },
+      },
+      models: {
+        providers: {
+          ollama: {
+            api: "ollama",
+            baseUrl: "http://127.0.0.1:11434",
+            models: [],
+          },
+        },
+      },
+      agents: {
+        defaults: {
+          model: { primary: "ollama/qwen3:4b" },
+          sandbox: { mode: "all" },
+        },
+      },
+    };
+    loadConfig.mockReturnValue(sourceConfig);
+    resolveCommandSecretRefsViaGateway.mockResolvedValue({
+      resolvedConfig: sourceConfig,
+      diagnostics: [],
+      targetStatesByPath: {},
+      hadUnresolvedTargets: false,
+    });
+    runSecurityAudit.mockResolvedValue({
+      ts: 0,
+      summary: { critical: 0, warn: 0, info: 0 },
+      findings: [],
+    });
+
+    await createProgram().parseAsync(["security", "audit", "--strict", "--json"], {
+      from: "user",
+    });
+
+    const payload = JSON.parse(String(runtimeLogs.at(-1)));
+    expect(payload.strict.enabled).toBe(true);
+    expect(payload.strict.passed).toBe(true);
+    expect(payload.summary).toEqual({ critical: 0, warn: 0, info: 0 });
+  });
 });

@@ -26,6 +26,7 @@ import type { NodeHostConfig } from "./types.node-host.js";
 import type { PluginsConfig } from "./types.plugins.js";
 import type { SecretsConfig } from "./types.secrets.js";
 import type { SkillsConfig } from "./types.skills.js";
+import type { SystemConfig } from "./types.system.js";
 import type { ToolsConfig } from "./types.tools.js";
 
 export type OpenClawConfig = {
@@ -60,6 +61,7 @@ export type OpenClawConfig = {
     lastRunCommand?: string;
     lastRunMode?: "local" | "remote";
   };
+  system?: SystemConfig;
   diagnostics?: DiagnosticsConfig;
   logging?: LoggingConfig;
   cli?: CliConfig;

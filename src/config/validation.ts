@@ -19,7 +19,12 @@ import { isCanonicalDottedDecimalIPv4, isLoopbackIpAddress } from "../shared/net
 import { isRecord } from "../utils.js";
 import { findDuplicateAgentDirs, formatDuplicateAgentDirError } from "./agent-dirs.js";
 import { appendAllowedValuesHint, summarizeAllowedValues } from "./allowed-values.js";
-import { applyAgentDefaults, applyModelDefaults, applySessionDefaults } from "./defaults.js";
+import {
+  applyAgentDefaults,
+  applyModelDefaults,
+  applySessionDefaults,
+  applySystemDefaults,
+} from "./defaults.js";
 import { findLegacyConfigIssues } from "./legacy.js";
 import type { OpenClawConfig, ConfigValidationIssue } from "./types.js";
 import { OpenClawSchema } from "./zod-schema.js";
@@ -281,7 +286,9 @@ export function validateConfigObject(
   }
   return {
     ok: true,
-    config: applyModelDefaults(applyAgentDefaults(applySessionDefaults(result.config))),
+    config: applyModelDefaults(
+      applyAgentDefaults(applySessionDefaults(applySystemDefaults(result.config))),
+    ),
   };
 }
 

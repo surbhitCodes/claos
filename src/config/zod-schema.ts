@@ -203,6 +203,85 @@ const TalkSchema = z
     }
   });
 
+const SystemOsSchema = z
+  .object({
+    security: z
+      .object({
+        profile: z.union([z.literal("strict"), z.literal("standard"), z.literal("dev")]).optional(),
+      })
+      .strict()
+      .optional(),
+    boot: z
+      .object({
+        integrity: z
+          .union([z.literal("required"), z.literal("recommended"), z.literal("off")])
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    runtime: z
+      .object({
+        sandbox: z
+          .union([z.literal("required"), z.literal("preferred"), z.literal("off")])
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    privacy: z
+      .object({
+        inferenceRouting: z
+          .union([
+            z.literal("hybrid-classified"),
+            z.literal("local-only"),
+            z.literal("cloud-allowed"),
+          ])
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    telemetry: z
+      .object({
+        enabled: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+    autonomy: z
+      .object({
+        enabled: z.boolean().optional(),
+        defaultModel: z.string().optional(),
+      })
+      .strict()
+      .optional(),
+    apps: z
+      .object({
+        autoInstall: z.boolean().optional(),
+        simple: z
+          .object({
+            model: z.string().optional(),
+          })
+          .strict()
+          .optional(),
+        fromScratch: z
+          .object({
+            requireProviders: z.boolean().optional(),
+            anthropicModel: z.string().optional(),
+            openaiModel: z.string().optional(),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
+const SystemSchema = z
+  .object({
+    os: SystemOsSchema.optional(),
+  })
+  .strict()
+  .optional();
+
 export const OpenClawSchema = z
   .object({
     $schema: z.string().optional(),
@@ -250,6 +329,7 @@ export const OpenClawSchema = z
       })
       .strict()
       .optional(),
+    system: SystemSchema,
     diagnostics: z
       .object({
         enabled: z.boolean().optional(),

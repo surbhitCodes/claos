@@ -165,4 +165,28 @@ describe("formatCliCommand", () => {
       "pnpm openclaw --profile work doctor",
     );
   });
+
+  it("handles claos command prefix", () => {
+    const originalArgv = process.argv;
+    process.argv = ["node", "claos"];
+    try {
+      expect(formatCliCommand("claos doctor --fix", { OPENCLAW_PROFILE: "work" })).toBe(
+        "claos --profile work doctor --fix",
+      );
+    } finally {
+      process.argv = originalArgv;
+    }
+  });
+
+  it("handles pnpm claos wrapper", () => {
+    const originalArgv = process.argv;
+    process.argv = ["node", "claos"];
+    try {
+      expect(formatCliCommand("pnpm claos doctor", { OPENCLAW_PROFILE: "work" })).toBe(
+        "pnpm claos --profile work doctor",
+      );
+    } finally {
+      process.argv = originalArgv;
+    }
+  });
 });

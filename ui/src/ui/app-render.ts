@@ -23,6 +23,14 @@ import { loadAgents, loadToolsCatalog, saveAgentsConfig } from "./controllers/ag
 import { loadChannels } from "./controllers/channels.ts";
 import { loadChatHistory } from "./controllers/chat.ts";
 import {
+  createClaosApp,
+  enforceClaosSecurity,
+  installClaosApp,
+  loadClaosDashboard,
+  runClaosAttestation,
+  uninstallClaosApp,
+} from "./controllers/claos.ts";
+import {
   applyConfig,
   ensureAgentConfigEntry,
   findAgentConfigEntryIndex,
@@ -129,6 +137,7 @@ const lazyLogs = createLazy(() => import("./views/logs.ts"));
 const lazyNodes = createLazy(() => import("./views/nodes.ts"));
 const lazySessions = createLazy(() => import("./views/sessions.ts"));
 const lazySkills = createLazy(() => import("./views/skills.ts"));
+const lazyClaos = createLazy(() => import("./views/claos.ts"));
 
 function lazyRender<M>(getter: () => M | null, render: (mod: M) => unknown) {
   const mod = getter();
@@ -457,10 +466,10 @@ export function renderApp(state: AppViewState) {
                   navCollapsed
                     ? nothing
                     : html`
-                        <img class="sidebar-brand__logo" src="${agentLogoUrl(basePath)}" alt="OpenClaw" />
+                        <img class="sidebar-brand__logo" src="${agentLogoUrl(basePath)}" alt="CLAOS" />
                         <span class="sidebar-brand__copy">
                           <span class="sidebar-brand__eyebrow">${t("nav.control")}</span>
-                          <span class="sidebar-brand__title">OpenClaw</span>
+                          <span class="sidebar-brand__title">CLAOS</span>
                         </span>
                       `
                 }
@@ -1863,6 +1872,40 @@ export function renderApp(state: AppViewState) {
                 includeSections: [...AI_AGENTS_SECTION_KEYS],
                 includeVirtualSections: false,
               })
+            : nothing
+        }
+
+        ${
+          state.tab === "claos"
+            ? lazyRender(lazyClaos, (m) =>
+                m.renderClaos({
+                  connected: state.connected,
+                  loading: state.claosLoading,
+                  error: state.claosError,
+                  apps: state.claosApps,
+                  security: state.claosSecurity,
+                  busyAction: state.claosBusyAction,
+                  createName: state.claosCreateName,
+                  createType: state.claosCreateType,
+                  createDescription: state.claosCreateDescription,
+                  lastAttestation: state.claosLastAttestation,
+                  onRefresh: () => loadClaosDashboard(state),
+                  onCreateNameChange: (value) => {
+                    state.claosCreateName = value;
+                  },
+                  onCreateTypeChange: (value) => {
+                    state.claosCreateType = value;
+                  },
+                  onCreateDescriptionChange: (value) => {
+                    state.claosCreateDescription = value;
+                  },
+                  onCreate: () => createClaosApp(state),
+                  onInstall: (appId) => installClaosApp(state, appId),
+                  onUninstall: (appId, purge) => uninstallClaosApp(state, appId, purge),
+                  onEnforceSecurity: () => enforceClaosSecurity(state),
+                  onAttest: () => runClaosAttestation(state),
+                }),
+              )
             : nothing
         }
 

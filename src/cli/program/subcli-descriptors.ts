@@ -114,6 +114,11 @@ export const SUB_CLI_DESCRIPTORS = [
     hasSubcommands: true,
   },
   {
+    name: "os",
+    description: "OpenClaw OS hardening, attestation, and recovery",
+    hasSubcommands: true,
+  },
+  {
     name: "secrets",
     description: "Secrets runtime reload controls",
     hasSubcommands: true,

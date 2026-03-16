@@ -31,6 +31,52 @@ export const FIELD_HELP: Record<string, string> = {
     "Command invocation recorded for the latest wizard run to preserve execution context. Use this to reproduce setup steps when verifying setup regressions.",
   "wizard.lastRunMode":
     'Wizard execution mode recorded as "local" or "remote" for the most recent setup flow. Use this to understand whether setup targeted direct local runtime or remote gateway topology.',
+  system:
+    "System-level hardening and policy controls for OpenClaw OS deployments. Use this section to enforce security defaults around boot integrity, sandbox posture, privacy routing, and telemetry behavior.",
+  "system.os":
+    "OpenClaw OS policy root used by security audit and enforcement commands to validate hardened appliance posture. Keep values aligned with strict profile defaults unless you explicitly run an insecure development environment.",
+  "system.os.security":
+    "OS security profile controls for baseline hardening expectations and compatibility tradeoffs. Use strict in production and only relax when debugging or validating unsupported hardware scenarios.",
+  "system.os.security.profile":
+    'OpenClaw OS security profile selector: "strict", "standard", or "dev". Keep "strict" for production hardening and downgrade only when you intentionally accept weaker protections.',
+  "system.os.boot":
+    "Boot-chain integrity policy for Secure Boot and measured-boot requirements. Use required to enforce hardware-rooted trust and detect tampering before runtime services start.",
+  "system.os.boot.integrity":
+    'Boot integrity requirement level: "required", "recommended", or "off". Keep "required" for production systems and avoid lowering this outside controlled troubleshooting scenarios.',
+  "system.os.runtime":
+    "Runtime isolation policy for sandbox guarantees and privileged-tool execution boundaries. Keep required to enforce that tool execution runs within sandbox constraints.",
+  "system.os.runtime.sandbox":
+    'Sandbox posture selector: "required", "preferred", or "off". Keep "required" for hardened operation and use weaker modes only when validating legacy host compatibility.',
+  "system.os.privacy":
+    "Inference data-flow controls that govern how requests are routed between local and cloud models. Keep hybrid-classified or local-only to reduce accidental sensitive-data egress.",
+  "system.os.privacy.inferenceRouting":
+    'Inference routing mode: "hybrid-classified", "local-only", or "cloud-allowed". Keep "hybrid-classified" to route sensitive workloads locally unless explicitly overridden.',
+  "system.os.telemetry":
+    "External telemetry controls for OpenClaw OS deployments. Keep telemetry disabled by default and require explicit operator consent before exporting observability data.",
+  "system.os.telemetry.enabled":
+    "Enables external telemetry export from OpenClaw OS when true. Keep false by default and enable only after reviewing privacy, retention, and destination trust requirements.",
+  "system.os.autonomy":
+    "Autonomous agent controls for OpenClaw OS that tune default execution and model posture for long-running coding and app-building workflows. Keep this enabled when you want agents to operate with minimal human gating inside sandbox boundaries.",
+  "system.os.autonomy.enabled":
+    "Enables autonomous agent workflow defaults for OpenClaw OS. Keep enabled to allow continuous agent operation and application-building tasks without per-command approval prompts.",
+  "system.os.autonomy.defaultModel":
+    "Default local-first model reference used for autonomous workflows. Keep this on a moderate Ollama model (for example ollama/qwen3:4b) so app-building runs remain fast and free on typical hardware.",
+  "system.os.apps":
+    "Local app-generation policy controls for CLAOS. This section defines simple metadata-first app creation, from-scratch generation model requirements, and automatic install behavior for local apps.",
+  "system.os.apps.autoInstall":
+    "Automatically marks newly created local apps as installed when true. Keep enabled so users can create and immediately run local apps without extra install steps.",
+  "system.os.apps.simple":
+    "Policy for simple app mode where the app uses a predefined structure and the LLM primarily generates metadata. Keep this path local-first for low cost and privacy.",
+  "system.os.apps.simple.model":
+    "Model reference used for simple metadata-first app generation. Keep this as a moderate local Ollama model (for example ollama/qwen3:4b).",
+  "system.os.apps.fromScratch":
+    "Policy for from-scratch app mode intended for high-quality code synthesis using latest cloud models. Keep this enabled for advanced app generation, and use provider prerequisites before generation to avoid partial or degraded builds.",
+  "system.os.apps.fromScratch.requireProviders":
+    "When true, from-scratch app creation requires both Anthropic and OpenAI provider credentials before generation can start. Keep this enabled in production so advanced builds always have both latest-model backends available.",
+  "system.os.apps.fromScratch.anthropicModel":
+    "Anthropic model reference used for from-scratch app generation. Keep this on the latest strong coding-capable model for best architecture and implementation quality.",
+  "system.os.apps.fromScratch.openaiModel":
+    "OpenAI model reference used for from-scratch app generation. Keep this on the latest strong coding-capable model for best architecture and implementation quality.",
   diagnostics:
     "Diagnostics controls for targeted tracing, telemetry export, and cache inspection during debugging. Keep baseline diagnostics minimal in production and enable deeper signals only when investigating issues.",
   "diagnostics.otel":

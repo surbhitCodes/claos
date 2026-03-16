@@ -672,3 +672,41 @@ export type AttentionItem = {
   href?: string;
   external?: boolean;
 };
+
+export type ClaosLocalAppKind = "simple" | "from-scratch";
+export type ClaosLocalAppStatus = "installed" | "uninstalled";
+
+export type ClaosLocalApp = {
+  id: string;
+  name: string;
+  kind: ClaosLocalAppKind;
+  status: ClaosLocalAppStatus;
+  createdAt: string;
+  installedAt?: string;
+  uninstalledAt?: string;
+  path: string;
+  description?: string;
+  models: {
+    simpleLocal: string;
+    fromScratchAnthropic: string;
+    fromScratchOpenAI: string;
+  };
+};
+
+export type ClaosStrictSecurityStatus = {
+  strict: {
+    passed: boolean;
+    summary: {
+      critical: number;
+      warn: number;
+      info: number;
+    };
+    findings: Array<{
+      checkId: string;
+      severity: "critical" | "warn" | "info";
+      title: string;
+      detail: string;
+      remediation?: string;
+    }>;
+  };
+};

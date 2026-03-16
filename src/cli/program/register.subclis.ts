@@ -276,6 +276,15 @@ const entries: SubCliEntry[] = [
     },
   },
   {
+    name: "os",
+    description: "OpenClaw OS hardening, attestation, and recovery",
+    hasSubcommands: true,
+    register: async (program) => {
+      const mod = await import("../os-cli.js");
+      mod.registerOsCli(program);
+    },
+  },
+  {
     name: "secrets",
     description: "Secrets runtime reload controls",
     hasSubcommands: true,

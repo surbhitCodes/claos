@@ -25,6 +25,7 @@ import {
   applyMessageDefaults,
   applyModelDefaults,
   applySessionDefaults,
+  applySystemDefaults,
   applyTalkConfigNormalization,
   applyTalkApiKey,
 } from "./defaults.js";
@@ -801,7 +802,9 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
           applyCompactionDefaults(
             applyContextPruningDefaults(
               applyAgentDefaults(
-                applySessionDefaults(applyLoggingDefaults(applyMessageDefaults(validated.config))),
+                applySessionDefaults(
+                  applySystemDefaults(applyLoggingDefaults(applyMessageDefaults(validated.config))),
+                ),
               ),
             ),
           ),
@@ -892,7 +895,9 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
           applyModelDefaults(
             applyCompactionDefaults(
               applyContextPruningDefaults(
-                applyAgentDefaults(applySessionDefaults(applyMessageDefaults({}))),
+                applyAgentDefaults(
+                  applySessionDefaults(applySystemDefaults(applyMessageDefaults({}))),
+                ),
               ),
             ),
           ),
@@ -1004,7 +1009,9 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
           applyTalkConfigNormalization(
             applyModelDefaults(
               applyAgentDefaults(
-                applySessionDefaults(applyLoggingDefaults(applyMessageDefaults(validated.config))),
+                applySessionDefaults(
+                  applySystemDefaults(applyLoggingDefaults(applyMessageDefaults(validated.config))),
+                ),
               ),
             ),
           ),

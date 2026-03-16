@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { loadConfig } from "../config/config.js";
+import { buildStrictAuditReport } from "../os/security-strict.js";
 import { defaultRuntime } from "../runtime.js";
 import { runSecurityAudit } from "../security/audit.js";
 import { fixSecurityFootguns } from "../security/fix.js";
@@ -14,6 +15,7 @@ import { formatHelpExamples } from "./help-format.js";
 type SecurityAuditOptions = {
   json?: boolean;
   deep?: boolean;
+  strict?: boolean;
   fix?: boolean;
   token?: string;
   password?: string;
@@ -47,6 +49,7 @@ export function registerSecurityCli(program: Command) {
             "Use explicit password for deep probe.",
           ],
           ["openclaw security audit --fix", "Apply safe remediations and file-permission fixes."],
+          ["openclaw security audit --strict", "Apply strict OpenClaw OS policy gates."],
           ["openclaw security audit --json", "Output machine-readable JSON."],
         ])}\n\n${theme.muted("Docs:")} ${formatDocsLink("/cli/security", "docs.openclaw.ai/cli/security")}\n`,
     );
@@ -57,6 +60,7 @@ export function registerSecurityCli(program: Command) {
     .option("--deep", "Attempt live Gateway probe (best-effort)", false)
     .option("--token <token>", "Use explicit gateway token for deep probe auth")
     .option("--password <password>", "Use explicit gateway password for deep probe auth")
+    .option("--strict", "Apply strict OpenClaw OS policy gate checks", false)
     .option("--fix", "Apply safe fixes (tighten defaults + chmod state/config)", false)
     .option("--json", "Print JSON", false)
     .action(async (opts: SecurityAuditOptions) => {
@@ -84,17 +88,45 @@ export function registerSecurityCli(program: Command) {
               }
             : undefined,
       });
+      const strict = opts.strict ? buildStrictAuditReport(report, cfg) : null;
+      const effectiveFindings = strict ? strict.mergedFindings : report.findings;
+      const effectiveSummary = strict ? strict.mergedSummary : report.summary;
+      const passedStrict = strict ? strict.passed : true;
 
       if (opts.json) {
-        defaultRuntime.log(
-          JSON.stringify(
-            fixResult
-              ? { fix: fixResult, report, secretDiagnostics }
-              : { ...report, secretDiagnostics },
-            null,
-            2,
-          ),
-        );
+        const payload = fixResult
+          ? {
+              fix: fixResult,
+              report: { ...report, summary: effectiveSummary, findings: effectiveFindings },
+              secretDiagnostics,
+            }
+          : {
+              ...report,
+              summary: effectiveSummary,
+              findings: effectiveFindings,
+              secretDiagnostics,
+            };
+        if (strict) {
+          defaultRuntime.log(
+            JSON.stringify(
+              {
+                ...payload,
+                strict: {
+                  enabled: true,
+                  passed: passedStrict,
+                  strictFindings: strict.strictFindings,
+                },
+              },
+              null,
+              2,
+            ),
+          );
+          if (!passedStrict) {
+            defaultRuntime.exit(1);
+          }
+          return;
+        }
+        defaultRuntime.log(JSON.stringify(payload, null, 2));
         return;
       }
 
@@ -104,8 +136,15 @@ export function registerSecurityCli(program: Command) {
 
       const lines: string[] = [];
       lines.push(heading("OpenClaw security audit"));
-      lines.push(muted(`Summary: ${formatSummary(report.summary)}`));
+      lines.push(muted(`Summary: ${formatSummary(effectiveSummary)}`));
       lines.push(muted(`Run deeper: ${formatCliCommand("openclaw security audit --deep")}`));
+      if (strict) {
+        lines.push(
+          muted(
+            `Strict gate: ${passedStrict ? "pass" : "fail"} (${formatCliCommand("openclaw security audit --strict")})`,
+          ),
+        );
+      }
       for (const diagnostic of secretDiagnostics) {
         lines.push(muted(`[secrets] ${diagnostic}`));
       }
@@ -160,7 +199,7 @@ export function registerSecurityCli(program: Command) {
       }
 
       const bySeverity = (sev: "critical" | "warn" | "info") =>
-        report.findings.filter((f) => f.severity === sev);
+        effectiveFindings.filter((f) => f.severity === sev);
 
       const render = (sev: "critical" | "warn" | "info") => {
         const list = bySeverity(sev);
@@ -195,5 +234,8 @@ export function registerSecurityCli(program: Command) {
       render("info");
 
       defaultRuntime.log(lines.join("\n"));
+      if (!passedStrict) {
+        defaultRuntime.exit(1);
+      }
     });
 }
