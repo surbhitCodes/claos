@@ -1,0 +1,324 @@
+import fs from "node:fs";
+import path from "node:path";
+import type { OpenClawConfig } from "../config/config.js";
+import { resolveStateDir } from "../config/paths.js";
+import { hasConfiguredSecretInput } from "../config/types.secrets.js";
+import { OPENCLAW_OS_DEFAULTS } from "./policy.js";
+
+export type OsAppKind = "simple" | "from-scratch";
+export type OsAppStatus = "installed" | "uninstalled";
+
+export type OsLocalAppRecord = {
+  id: string;
+  name: string;
+  kind: OsAppKind;
+  status: OsAppStatus;
+  createdAt: string;
+  installedAt?: string;
+  uninstalledAt?: string;
+  path: string;
+  description?: string;
+  models: {
+    simpleLocal: string;
+    fromScratchAnthropic: string;
+    fromScratchOpenAI: string;
+  };
+};
+
+type OsAppRegistry = {
+  version: 1;
+  apps: OsLocalAppRecord[];
+};
+
+export type CreateOsAppInput = {
+  config: OpenClawConfig;
+  name: string;
+  kind: OsAppKind;
+  description?: string;
+  stateDir?: string;
+};
+
+export type UninstallOsAppInput = {
+  appId: string;
+  purge?: boolean;
+  stateDir?: string;
+};
+
+export type InstallOsAppInput = {
+  appId: string;
+  stateDir?: string;
+};
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function mkdirp(dir: string): void {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+function writeJson(filePath: string, data: unknown): void {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n", "utf8");
+}
+
+function resolveAppsRoot(stateDir = resolveStateDir()): string {
+  return path.join(stateDir, "apps");
+}
+
+function resolveRegistryPath(stateDir = resolveStateDir()): string {
+  return path.join(resolveAppsRoot(stateDir), "registry.json");
+}
+
+export function resolveLocalAppDir(appId: string, stateDir = resolveStateDir()): string {
+  return path.join(resolveAppsRoot(stateDir), "local", appId);
+}
+
+function readRegistry(stateDir = resolveStateDir()): OsAppRegistry {
+  const filePath = resolveRegistryPath(stateDir);
+  if (!fs.existsSync(filePath)) {
+    return { version: 1, apps: [] };
+  }
+  const raw = fs.readFileSync(filePath, "utf8");
+  const parsed = JSON.parse(raw) as Partial<OsAppRegistry>;
+  if (parsed.version !== 1 || !Array.isArray(parsed.apps)) {
+    return { version: 1, apps: [] };
+  }
+  return {
+    version: 1,
+    apps: parsed.apps.filter((item): item is OsLocalAppRecord => Boolean(item && item.id)),
+  };
+}
+
+function writeRegistry(registry: OsAppRegistry, stateDir = resolveStateDir()): void {
+  mkdirp(resolveAppsRoot(stateDir));
+  writeJson(resolveRegistryPath(stateDir), registry);
+}
+
+function normalizeAppId(input: string): string {
+  const normalized = input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!normalized) {
+    throw new Error("App name must include letters or numbers.");
+  }
+  if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(normalized)) {
+    throw new Error(
+      "App id must be 2-63 chars and contain only lowercase letters, numbers, or '-'.",
+    );
+  }
+  return normalized;
+}
+
+function hasProviderCredential(cfg: OpenClawConfig, providerId: string): boolean {
+  const provider = cfg.models?.providers?.[providerId];
+  if (!provider) {
+    return false;
+  }
+  return hasConfiguredSecretInput(provider.apiKey);
+}
+
+function assertFromScratchRequirements(cfg: OpenClawConfig): void {
+  const requireBoth = cfg.system?.os?.apps?.fromScratch?.requireProviders ?? true;
+  if (!requireBoth) {
+    return;
+  }
+
+  const missing: string[] = [];
+  if (!hasProviderCredential(cfg, "anthropic")) {
+    missing.push("anthropic");
+  }
+  if (!hasProviderCredential(cfg, "openai")) {
+    missing.push("openai");
+  }
+  if (missing.length === 0) {
+    return;
+  }
+
+  const lines = [
+    `from-scratch app creation requires configured model API credentials for: ${missing.join(", ")}`,
+  ];
+  if (missing.includes("anthropic")) {
+    lines.push('Set: openclaw config set models.providers.anthropic.apiKey "$ANTHROPIC_API_KEY"');
+  }
+  if (missing.includes("openai")) {
+    lines.push('Set: openclaw config set models.providers.openai.apiKey "$OPENAI_API_KEY"');
+  }
+  throw new Error(lines.join("\n"));
+}
+
+function appModelPolicy(cfg: OpenClawConfig): OsLocalAppRecord["models"] {
+  return {
+    simpleLocal: cfg.system?.os?.apps?.simple?.model ?? OPENCLAW_OS_DEFAULTS.appsSimpleModel,
+    fromScratchAnthropic:
+      cfg.system?.os?.apps?.fromScratch?.anthropicModel ??
+      OPENCLAW_OS_DEFAULTS.appsFromScratchAnthropicModel,
+    fromScratchOpenAI:
+      cfg.system?.os?.apps?.fromScratch?.openaiModel ??
+      OPENCLAW_OS_DEFAULTS.appsFromScratchOpenAIModel,
+  };
+}
+
+function writeSimpleAppSkeleton(params: { dir: string; record: OsLocalAppRecord }): void {
+  const template = {
+    appId: params.record.id,
+    appName: params.record.name,
+    mode: "simple",
+    // Metadata-first app shape: LLM fills these fields while logic stays predefined.
+    metadata: {
+      displayName: params.record.name,
+      tagline: "Generated by OpenClaw CLAOS simple app mode",
+      icon: "robot",
+      category: "productivity",
+      permissions: ["local-files-read", "local-files-write"],
+    },
+    predefinedStructure: {
+      routes: [
+        { id: "home", title: "Home" },
+        { id: "settings", title: "Settings" },
+      ],
+      actions: [{ id: "summarize", title: "Summarize Notes" }],
+    },
+  };
+
+  writeJson(path.join(params.dir, "app.template.json"), template);
+  fs.writeFileSync(
+    path.join(params.dir, "README.md"),
+    [
+      `# ${params.record.name}`,
+      "",
+      "Simple app scaffold (metadata-first).",
+      "",
+      "- Edit `app.template.json` metadata and keep predefined structure.",
+      "- Generated with local-first model defaults.",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+}
+
+function writeFromScratchAppSkeleton(params: { dir: string; record: OsLocalAppRecord }): void {
+  mkdirp(path.join(params.dir, "src"));
+  fs.writeFileSync(
+    path.join(params.dir, "src", "main.ts"),
+    [
+      `export function run${params.record.id.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())}(): string {`,
+      '  return "Hello from CLAOS from-scratch app";',
+      "}",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  writeJson(path.join(params.dir, "package.json"), {
+    name: `@claos-local/${params.record.id}`,
+    version: "0.0.1",
+    private: true,
+    type: "module",
+    scripts: {
+      build: "echo 'add your build pipeline'",
+      start: "node --eval \"import('./src/main.ts').then(m=>console.log(Object.keys(m)))\"",
+    },
+  });
+  fs.writeFileSync(
+    path.join(params.dir, "README.md"),
+    [
+      `# ${params.record.name}`,
+      "",
+      "From-scratch app scaffold.",
+      "",
+      `- Anthropic model: \`${params.record.models.fromScratchAnthropic}\``,
+      `- OpenAI model: \`${params.record.models.fromScratchOpenAI}\``,
+      "- Use these latest cloud models for generation, architecture, and code synthesis.",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+}
+
+export function createLocalOsApp(input: CreateOsAppInput): OsLocalAppRecord {
+  const name = input.name.trim();
+  if (!name) {
+    throw new Error("App name is required.");
+  }
+  const stateDir = input.stateDir ?? resolveStateDir();
+  const id = normalizeAppId(name);
+  const registry = readRegistry(stateDir);
+  if (registry.apps.some((item) => item.id === id)) {
+    throw new Error(`App '${id}' already exists.`);
+  }
+
+  if (input.kind === "from-scratch") {
+    assertFromScratchRequirements(input.config);
+  }
+
+  const appDir = resolveLocalAppDir(id, stateDir);
+  mkdirp(appDir);
+  const createdAt = nowIso();
+  const autoInstall = input.config.system?.os?.apps?.autoInstall ?? true;
+  const record: OsLocalAppRecord = {
+    id,
+    name,
+    kind: input.kind,
+    status: autoInstall ? "installed" : "uninstalled",
+    createdAt,
+    installedAt: autoInstall ? createdAt : undefined,
+    description: input.description?.trim() || undefined,
+    path: appDir,
+    models: appModelPolicy(input.config),
+  };
+
+  writeJson(path.join(appDir, "openclaw.app.json"), record);
+  if (input.kind === "simple") {
+    writeSimpleAppSkeleton({ dir: appDir, record });
+  } else {
+    writeFromScratchAppSkeleton({ dir: appDir, record });
+  }
+
+  registry.apps.push(record);
+  registry.apps.sort((a, b) => a.id.localeCompare(b.id));
+  writeRegistry(registry, stateDir);
+  return record;
+}
+
+export function listLocalOsApps(stateDir = resolveStateDir()): OsLocalAppRecord[] {
+  const registry = readRegistry(stateDir);
+  return [...registry.apps].toSorted((a, b) => a.id.localeCompare(b.id));
+}
+
+export function installLocalOsApp(input: InstallOsAppInput): OsLocalAppRecord {
+  const stateDir = input.stateDir ?? resolveStateDir();
+  const registry = readRegistry(stateDir);
+  const id = normalizeAppId(input.appId);
+  const app = registry.apps.find((item) => item.id === id);
+  if (!app) {
+    throw new Error(`App '${id}' not found.`);
+  }
+  app.status = "installed";
+  app.installedAt = nowIso();
+  delete app.uninstalledAt;
+  writeRegistry(registry, stateDir);
+  writeJson(path.join(resolveLocalAppDir(id, stateDir), "openclaw.app.json"), app);
+  return app;
+}
+
+export function uninstallLocalOsApp(input: UninstallOsAppInput): OsLocalAppRecord {
+  const stateDir = input.stateDir ?? resolveStateDir();
+  const registry = readRegistry(stateDir);
+  const id = normalizeAppId(input.appId);
+  const app = registry.apps.find((item) => item.id === id);
+  if (!app) {
+    throw new Error(`App '${id}' not found.`);
+  }
+  app.status = "uninstalled";
+  app.uninstalledAt = nowIso();
+  delete app.installedAt;
+  if (input.purge) {
+    fs.rmSync(resolveLocalAppDir(id, stateDir), { recursive: true, force: true });
+  }
+  writeRegistry(registry, stateDir);
+  if (!input.purge) {
+    writeJson(path.join(resolveLocalAppDir(id, stateDir), "openclaw.app.json"), app);
+  }
+  return app;
+}

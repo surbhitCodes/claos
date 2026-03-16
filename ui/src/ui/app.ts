@@ -83,6 +83,8 @@ import type {
   SkillStatusReport,
   StatusSummary,
   NostrProfile,
+  ClaosLocalApp,
+  ClaosStrictSecurityStatus,
   ToolsCatalogResult,
 } from "./types.ts";
 import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./ui-types.ts";
@@ -259,6 +261,15 @@ export class OpenClawApp extends LitElement {
   @state() toolsCatalogLoading = false;
   @state() toolsCatalogError: string | null = null;
   @state() toolsCatalogResult: ToolsCatalogResult | null = null;
+  @state() claosLoading = false;
+  @state() claosError: string | null = null;
+  @state() claosApps: ClaosLocalApp[] = [];
+  @state() claosSecurity: ClaosStrictSecurityStatus | null = null;
+  @state() claosBusyAction: string | null = null;
+  @state() claosCreateName = "";
+  @state() claosCreateType: "simple" | "from-scratch" = "simple";
+  @state() claosCreateDescription = "";
+  @state() claosLastAttestation: unknown = null;
   @state() agentsPanel: "overview" | "files" | "tools" | "skills" | "channels" | "cron" =
     "overview";
   @state() agentFilesLoading = false;

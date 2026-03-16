@@ -41,6 +41,18 @@ const DEFAULT_MODEL_COST: ModelDefinitionConfig["cost"] = {
 };
 const DEFAULT_MODEL_INPUT: ModelDefinitionConfig["input"] = ["text"];
 const DEFAULT_MODEL_MAX_TOKENS = 8192;
+const DEFAULT_OS_SECURITY_PROFILE = "strict" as const;
+const DEFAULT_OS_BOOT_INTEGRITY = "required" as const;
+const DEFAULT_OS_RUNTIME_SANDBOX = "required" as const;
+const DEFAULT_OS_INFERENCE_ROUTING = "hybrid-classified" as const;
+const DEFAULT_OS_TELEMETRY_ENABLED = false;
+const DEFAULT_OS_AUTONOMY_ENABLED = true;
+const DEFAULT_OS_AUTONOMY_MODEL = "ollama/qwen3:4b";
+const DEFAULT_OS_APPS_AUTO_INSTALL = true;
+const DEFAULT_OS_APPS_SIMPLE_MODEL = "ollama/qwen3:4b";
+const DEFAULT_OS_APPS_FROM_SCRATCH_REQUIRE_PROVIDERS = true;
+const DEFAULT_OS_APPS_FROM_SCRATCH_ANTHROPIC_MODEL = "anthropic/claude-sonnet-4-6";
+const DEFAULT_OS_APPS_FROM_SCRATCH_OPENAI_MODEL = "openai/gpt-5.4";
 
 type ModelDefinitionLike = Partial<ModelDefinitionConfig> &
   Pick<ModelDefinitionConfig, "id" | "name">;
@@ -140,6 +152,91 @@ export function applyMessageDefaults(cfg: OpenClawConfig): OpenClawConfig {
   return {
     ...cfg,
     messages: nextMessages,
+  };
+}
+
+export function applySystemDefaults(cfg: OpenClawConfig): OpenClawConfig {
+  const current = cfg.system?.os;
+  const profile = current?.security?.profile ?? DEFAULT_OS_SECURITY_PROFILE;
+  const integrity = current?.boot?.integrity ?? DEFAULT_OS_BOOT_INTEGRITY;
+  const sandbox = current?.runtime?.sandbox ?? DEFAULT_OS_RUNTIME_SANDBOX;
+  const inferenceRouting = current?.privacy?.inferenceRouting ?? DEFAULT_OS_INFERENCE_ROUTING;
+  const telemetryEnabled = current?.telemetry?.enabled ?? DEFAULT_OS_TELEMETRY_ENABLED;
+  const autonomyEnabled = current?.autonomy?.enabled ?? DEFAULT_OS_AUTONOMY_ENABLED;
+  const autonomyModel = current?.autonomy?.defaultModel ?? DEFAULT_OS_AUTONOMY_MODEL;
+  const appsAutoInstall = current?.apps?.autoInstall ?? DEFAULT_OS_APPS_AUTO_INSTALL;
+  const appsSimpleModel = current?.apps?.simple?.model ?? DEFAULT_OS_APPS_SIMPLE_MODEL;
+  const appsFromScratchRequireProviders =
+    current?.apps?.fromScratch?.requireProviders ?? DEFAULT_OS_APPS_FROM_SCRATCH_REQUIRE_PROVIDERS;
+  const appsFromScratchAnthropicModel =
+    current?.apps?.fromScratch?.anthropicModel ?? DEFAULT_OS_APPS_FROM_SCRATCH_ANTHROPIC_MODEL;
+  const appsFromScratchOpenAiModel =
+    current?.apps?.fromScratch?.openaiModel ?? DEFAULT_OS_APPS_FROM_SCRATCH_OPENAI_MODEL;
+
+  const unchanged =
+    current?.security?.profile === profile &&
+    current?.boot?.integrity === integrity &&
+    current?.runtime?.sandbox === sandbox &&
+    current?.privacy?.inferenceRouting === inferenceRouting &&
+    current?.telemetry?.enabled === telemetryEnabled &&
+    current?.autonomy?.enabled === autonomyEnabled &&
+    current?.autonomy?.defaultModel === autonomyModel &&
+    current?.apps?.autoInstall === appsAutoInstall &&
+    current?.apps?.simple?.model === appsSimpleModel &&
+    current?.apps?.fromScratch?.requireProviders === appsFromScratchRequireProviders &&
+    current?.apps?.fromScratch?.anthropicModel === appsFromScratchAnthropicModel &&
+    current?.apps?.fromScratch?.openaiModel === appsFromScratchOpenAiModel;
+  if (unchanged) {
+    return cfg;
+  }
+
+  return {
+    ...cfg,
+    system: {
+      ...cfg.system,
+      os: {
+        ...cfg.system?.os,
+        security: {
+          ...cfg.system?.os?.security,
+          profile,
+        },
+        boot: {
+          ...cfg.system?.os?.boot,
+          integrity,
+        },
+        runtime: {
+          ...cfg.system?.os?.runtime,
+          sandbox,
+        },
+        privacy: {
+          ...cfg.system?.os?.privacy,
+          inferenceRouting,
+        },
+        telemetry: {
+          ...cfg.system?.os?.telemetry,
+          enabled: telemetryEnabled,
+        },
+        autonomy: {
+          ...cfg.system?.os?.autonomy,
+          enabled: autonomyEnabled,
+          defaultModel: autonomyModel,
+        },
+        apps: {
+          ...cfg.system?.os?.apps,
+          autoInstall: appsAutoInstall,
+          simple: {
+            ...cfg.system?.os?.apps?.simple,
+            model: appsSimpleModel,
+          },
+          fromScratch: {
+            ...cfg.system?.os?.apps?.fromScratch,
+            requireProviders: appsFromScratchRequireProviders,
+            anthropicModel: appsFromScratchAnthropicModel,
+            openaiModel: appsFromScratchOpenAiModel,
+          },
+        },
+      },
+    },
   };
 }
 

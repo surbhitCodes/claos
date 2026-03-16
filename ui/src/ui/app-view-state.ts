@@ -22,6 +22,8 @@ import type {
   LogEntry,
   LogLevel,
   ChatModelOverride,
+  ClaosLocalApp,
+  ClaosStrictSecurityStatus,
   ModelCatalogEntry,
   NostrProfile,
   PresenceEntry,
@@ -163,6 +165,15 @@ export type AppViewState = {
   toolsCatalogLoading: boolean;
   toolsCatalogError: string | null;
   toolsCatalogResult: ToolsCatalogResult | null;
+  claosLoading: boolean;
+  claosError: string | null;
+  claosApps: ClaosLocalApp[];
+  claosSecurity: ClaosStrictSecurityStatus | null;
+  claosBusyAction: string | null;
+  claosCreateName: string;
+  claosCreateType: "simple" | "from-scratch";
+  claosCreateDescription: string;
+  claosLastAttestation: unknown;
   agentsPanel: "overview" | "files" | "tools" | "skills" | "channels" | "cron";
   agentFilesLoading: boolean;
   agentFilesError: string | null;
